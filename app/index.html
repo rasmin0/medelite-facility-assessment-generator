@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INFINITE - Facility Assessment Snapshot</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand-bar">
+        <div>
+          <p class="platform">INFINITE - Managed by MEDELITE</p>
+          <h1>Facility Assessment Snapshot</h1>
+        </div>
+        <span id="stateBadge" class="state-badge">--</span>
+      </header>
+
+      <section class="workspace">
+        <form id="assessmentForm" class="panel">
+          <div class="section-heading">
+            <h2>Facility Lookup</h2>
+            <p>Enter a CMS Certification Number to pull public CMS facility data.</p>
+          </div>
+
+          <div class="lookup-row">
+            <label for="ccn">
+              CCN
+              <input id="ccn" name="ccn" inputmode="numeric" maxlength="6" placeholder="e.g. 686123" required />
+            </label>
+            <button id="lookupButton" type="button">Search Facility</button>
+          </div>
+
+          <p id="status" class="status" role="status">Enter a CCN and click Search Facility. Try 686123 for the validation case.</p>
+
+          <div class="grid two">
+            <label for="facilityName">
+              Official Facility Name
+              <input id="facilityName" name="facilityName" readonly />
+            </label>
+            <label for="facilityOverride">
+              Optional Name Override
+              <input id="facilityOverride" name="facilityOverride" placeholder="Use a local/internal display name" />
+            </label>
+            <label for="location">
+              Location
+              <input id="location" name="location" readonly />
+            </label>
+            <label for="certifiedBeds">
+              Census Capacity
+              <input id="certifiedBeds" name="certifiedBeds" readonly />
+            </label>
+            <label for="avgResidents">
+              CMS Average Residents/Day
+              <input id="avgResidents" name="avgResidents" readonly />
+            </label>
+          </div>
+
+          <div class="section-heading">
+            <h2>Manual Operational Inputs</h2>
+            <p>These fields are internal Medelite details that are not supplied by CMS.</p>
+          </div>
+
+          <div class="grid two">
+            <label for="emr">
+              EMR
+              <input id="emr" name="emr" placeholder="e.g. PCC" />
+            </label>
+            <label for="currentCensus">
+              Current Census
+              <input id="currentCensus" name="currentCensus" placeholder="Manual current census" />
+            </label>
+            <label for="patientType">
+              Type of Patient
+              <input id="patientType" name="patientType" placeholder="e.g. Long-term & Short-term" />
+            </label>
+            <label for="medeliteHistory">
+              Previous Coverage from Medelite
+              <input id="medeliteHistory" name="medeliteHistory" placeholder="e.g. Yes" />
+            </label>
+            <label for="providerPerformance">
+              Previous Provider Performance
+              <input id="providerPerformance" name="providerPerformance" placeholder="e.g. About 30 patients/day" />
+            </label>
+            <label for="medicalCoverage">
+              Medical Coverage
+              <input id="medicalCoverage" name="medicalCoverage" placeholder="e.g. Optometry, PCP, Podiatry" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="downloadButton" type="button" disabled>Download PDF</button>
+          </div>
+        </form>
+
+        <aside class="preview panel">
+          <div class="section-heading">
+            <h2>Snapshot Preview</h2>
+            <p>The PDF uses this same field order.</p>
+          </div>
+          <dl id="previewList" class="snapshot-list"></dl>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "medelite-facility-assessment-snapshot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Facility assessment snapshot generator for the Medelite healthcare data automation case study.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
