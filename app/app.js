@@ -54,8 +54,17 @@ const emptyClaimsMetrics = {
 lookupButton.addEventListener("click", lookupFacility);
 downloadButton.addEventListener("click", downloadPdf);
 
-Object.values(fields).forEach((field) => {
-  field.addEventListener("input", renderPreview);
+fields.ccn.addEventListener("input", () => {
+  if (activeFacility) {
+    clearLoadedFacility();
+    setStatus("CCN changed. Click Search Facility to load the new facility.");
+  }
+});
+
+Object.entries(fields).forEach(([name, field]) => {
+  if (name !== "ccn") {
+    field.addEventListener("input", renderPreview);
+  }
 });
 
 renderPreview();
@@ -63,6 +72,7 @@ renderPreview();
 async function lookupFacility() {
   const ccn = fields.ccn.value.trim();
   if (!/^\d{6}$/.test(ccn)) {
+    clearLoadedFacility();
     setStatus("Enter a valid 6-digit CCN.", true);
     return;
   }
@@ -75,8 +85,7 @@ async function lookupFacility() {
     const response = await fetch(`/api/facility?ccn=${encodeURIComponent(ccn)}`);
 
     if (response.status === 404) {
-      activeFacility = null;
-      clearCmsFields();
+      clearLoadedFacility();
       setStatus(`No active nursing home was found for CCN ${ccn}.`, true);
       return;
     }
@@ -96,7 +105,8 @@ async function lookupFacility() {
     renderPreview();
   } catch (error) {
     console.error(error);
-    setStatus("Could not load CMS data. Check the browser console or try again.", true);
+    clearLoadedFacility();
+    setStatus("Could not load CMS data. Please try again in a moment.", true);
   } finally {
     lookupButton.disabled = false;
   }
@@ -115,6 +125,7 @@ function getReportRows() {
     ["Location", activeFacility.location],
     ["EMR", fields.emr.value],
     ["Census Capacity", activeFacility.certifiedBeds],
+    ["CMS Average Residents/Day", activeFacility.avgResidents],
     ["Current Census", fields.currentCensus.value],
     ["Type of Patient", fields.patientType.value],
     ["Previous Coverage from Medelite", fields.medeliteHistory.value],
@@ -148,7 +159,7 @@ function renderPreview() {
     return;
   }
 
-  rows.slice(0, 13).forEach(([label, value]) => {
+  rows.slice(0, 14).forEach(([label, value]) => {
     const wrapper = document.createElement("div");
     const term = document.createElement("dt");
     const description = document.createElement("dd");
@@ -161,6 +172,7 @@ function renderPreview() {
 
 function downloadPdf() {
   if (!activeFacility) {
+    setStatus("Search for a valid facility before downloading the PDF.", true);
     return;
   }
 
@@ -182,28 +194,60 @@ function buildPdf() {
   const medicareUrl = `https://www.medicare.gov/care-compare/details/nursing-home/${activeFacility.ccn}`;
   const content = [];
 
-  content.push("0 0 0 rg BT /F1 10 Tf 72 746 Td (INFINITE - Managed by MEDELITE) Tj ET");
-  content.push("0 0 0 rg BT /F2 20 Tf 72 712 Td (FACILITY ASSESSMENT SNAPSHOT) Tj ET");
-  content.push(`0 0 0 rg BT /F2 18 Tf 510 712 Td (${pdfText(state)}) Tj ET`);
+  drawRect(content, 42, 704, 528, 58, "0.09 0.23 0.34");
+  drawText(content, "INFINITE - Managed by MEDELITE", 58, 744, 9, "F2", "1 1 1");
+  drawText(content, "FACILITY ASSESSMENT SNAPSHOT", 58, 718, 20, "F2", "1 1 1");
+  drawRect(content, 514, 718, 34, 30, "0.09 0.23 0.34", "0.75 0.84 0.9");
+  drawText(content, state, 523, 728, 14, "F2", "1 1 1");
 
-  let y = 674;
+  drawText(content, "Facility Summary", 54, 678, 12, "F2", "0.09 0.23 0.34");
+  drawLine(content, 54, 668, 558, 668, "0.78 0.82 0.86");
+
+  let y = 650;
   rows.forEach(([label, value], index) => {
+    const valueLines = wrapText(clean(value) || "--", 38, 2);
+    const labelLines = wrapText(label, 32, 2);
+    const rowHeight = Math.max(19, 12 + Math.max(valueLines.length, labelLines.length) * 10);
+
     if (index % 2 === 0) {
-      content.push(`q 0.93 0.96 0.98 rg 66 ${y - 8} 480 22 re f Q`);
+      drawRect(content, 54, y - rowHeight + 7, 504, rowHeight, "0.95 0.97 0.98");
     }
-    content.push(`0 0 0 rg BT /F2 9 Tf 78 ${y} Td (${pdfText(label)}) Tj ET`);
-    content.push(`0 0 0 rg BT /F1 9 Tf 300 ${y} Td (${pdfText(clean(value) || "--")}) Tj ET`);
-    y -= 22;
+
+    labelLines.forEach((line, lineIndex) => {
+      drawText(content, line, 66, y - lineIndex * 10, 8.2, "F2", "0.24 0.31 0.39");
+    });
+    valueLines.forEach((line, lineIndex) => {
+      drawText(content, line, 306, y - lineIndex * 10, 8.2, "F1", "0.05 0.06 0.08");
+    });
+
+    y -= rowHeight;
   });
 
-  y -= 8;
-  content.push(`0 0 0 rg BT /F1 8 Tf 78 ${y} Td (Medicare Care Compare source:) Tj ET`);
-  content.push(`0 0.32 0.67 rg BT /F1 8 Tf 220 ${y} Td (${pdfText(medicareUrl)}) Tj ET 0 0 0 rg`);
+  y -= 6;
+  drawLine(content, 54, y + 8, 558, y + 8, "0.78 0.82 0.86");
+  drawText(content, "Medicare Care Compare source:", 54, y - 6, 7.5, "F2", "0.24 0.31 0.39");
+  drawText(content, medicareUrl, 180, y - 6, 7.5, "F1", "0 0.32 0.67");
 
   const stream = content.join("\n");
-  const linkRect = [220, y - 2, 520, y + 10].join(" ");
+  const linkRect = [180, y - 8, 520, y + 4].join(" ");
 
   return createPdfDocument(stream, medicareUrl, linkRect);
+}
+
+function drawText(content, text, x, y, size, font = "F1", color = "0 0 0") {
+  content.push(`${color} rg BT /${font} ${size} Tf ${x} ${y} Td (${pdfText(text)}) Tj ET`);
+}
+
+function drawRect(content, x, y, width, height, fillColor, strokeColor) {
+  if (strokeColor) {
+    content.push(`q ${fillColor} rg ${strokeColor} RG ${x} ${y} ${width} ${height} re B Q`);
+  } else {
+    content.push(`q ${fillColor} rg ${x} ${y} ${width} ${height} re f Q`);
+  }
+}
+
+function drawLine(content, x1, y1, x2, y2, color) {
+  content.push(`q ${color} RG ${x1} ${y1} m ${x2} ${y2} l S Q`);
 }
 
 function createPdfDocument(stream, medicareUrl, linkRect) {
@@ -235,23 +279,58 @@ function createPdfDocument(stream, medicareUrl, linkRect) {
   return pdf;
 }
 
-function setStatus(message, isError = false) {
-  statusEl.textContent = message;
-  statusEl.classList.toggle("error", isError);
-}
-
-function clearCmsFields() {
+function clearLoadedFacility() {
   activeFacility = null;
   fields.facilityName.value = "";
   fields.location.value = "";
   fields.certifiedBeds.value = "";
   fields.avgResidents.value = "";
   stateBadge.textContent = "--";
+  downloadButton.disabled = true;
   renderPreview();
+}
+
+function setStatus(message, isError = false) {
+  statusEl.textContent = message;
+  statusEl.classList.toggle("error", isError);
 }
 
 function clean(value) {
   return String(value ?? "").trim();
+}
+
+function wrapText(value, maxChars, maxLines) {
+  const words = clean(value).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length <= maxChars) {
+      line = candidate;
+    } else {
+      if (line) {
+        lines.push(line);
+      }
+      line = word;
+    }
+  });
+
+  if (line) {
+    lines.push(line);
+  }
+
+  if (!lines.length) {
+    return ["--"];
+  }
+
+  if (lines.length > maxLines) {
+    const trimmed = lines.slice(0, maxLines);
+    trimmed[maxLines - 1] = `${trimmed[maxLines - 1].slice(0, Math.max(0, maxChars - 3))}...`;
+    return trimmed;
+  }
+
+  return lines;
 }
 
 function pdfText(value) {
@@ -261,8 +340,3 @@ function pdfText(value) {
     .replace(/\(/g, "\\(")
     .replace(/\)/g, "\\)");
 }
-
-window.__medeliteTest = {
-  buildPdf: () => buildPdf(),
-  getReportRows: () => getReportRows()
-};

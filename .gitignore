@@ -1,0 +1,6 @@
+.DS_Store
+*.pdf
+*.zip
+Healthcare Data Automation Case Materials/
+node_modules/
+.env
